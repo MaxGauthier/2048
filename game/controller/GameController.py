@@ -11,13 +11,10 @@ class GameController:
         width, height = SCREEN_WIDTH, SCREEN_HEIGHT
         rows, cols = 4, 4
         self.screen = pygame.display.set_mode((width, height))
-        pygame.display.set_caption("Grid MVC Example")
+        pygame.display.set_caption("2048 GAME")
         self.grid_view = GridView(rows, cols, width, height)
         self.game_view = GameView(self.screen, self.grid_view) 
-        """
-        self.model = GameModel(rows, cols)
-        self.view = GameView(self.screen, self.model)
-        """
+
 
 
     def run(self):
