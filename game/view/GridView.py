@@ -5,6 +5,5 @@ class GridView:
         self.cols = cols
         self.width = width
         self.height = height
-        self.cell_size = 100
 
         

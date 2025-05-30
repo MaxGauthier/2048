@@ -1,5 +1,6 @@
 import pygame
 import sys
+from utils.constants import *
 from game.view.GridView import GridView      
 from game.view.GameView import GameView
 
@@ -7,7 +8,7 @@ class GameController:
 
     def __init__(self):
         pygame.init()
-        width, height = 800, 800
+        width, height = SCREEN_WIDTH, SCREEN_HEIGHT
         rows, cols = 4, 4
         self.screen = pygame.display.set_mode((width, height))
         pygame.display.set_caption("Grid MVC Example")
