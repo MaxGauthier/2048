@@ -1,43 +1,39 @@
-import random
-from Cell import Cell
-from Move import Move
-from GenerateCell import GenerateCell
+from game.model.Cell import Cell
+from game.model.Move import Move
+from game.model.GenerateCell import GenerateCell
 
 class Grid:
-    """ Generates each cell of the grid rows x columns with each cell value from Cell() 
-        Output: [0, 0, 0, 0]
-                [0, 0, 0, 0]
-                [0, 0, 0, 0]
-                [0, 0, 0, 0]
-    """
-
     def __init__(self, rows, columns, width, height):
         self.width = width
         self.height = height
         self.rows = rows
-        self.columns = columns 
-        self.grid = self.create_grid()
-        self.previous_grid = None  # for backup before a move
+        self.columns = columns
+        self.grid = self._create_empty_grid()
+        self.previous_grid = None
         self.move = Move(self)
         self.generate_cell = GenerateCell(self.grid, self.rows, self.columns)
+        self.generate_cell.starting_board()
+
+    def _create_empty_grid(self):
+        return [[Cell(x, y) for x in range(self.columns)] for y in range(self.rows)]
 
     def create_grid(self):
         grid = []
-        pos = 0
-        for _ in range(0, self.rows):
+        for y in range(0, self.rows):
             row = []
-            for _ in range(self.columns):
-                row.append(Cell(pos))     
-                pos += 1
+            for x in range(self.columns):
+                row.append(Cell(x, y))     
             grid.append(row)
+
+        print(grid)
         return grid
 
     def backup_grid(self):
-        self.previous_grid = [[Cell(cell.pos, cell.value) for cell in row]
+        self.previous_grid = [[Cell(cell.x, cell.y , cell.value) for cell in row]
         for row in self.grid]
 
-    def print_grid(self):
-        for row in g.grid:
+    def print_grid(self, grid):
+        for row in grid:
             t = []
             for cell in row:
                 t.append(cell.value)
@@ -53,27 +49,13 @@ class Grid:
             for j in range(self.columns):
                 self.grid[i][j].value = self.previous_grid[i][j].value
 
-    def random_move(self):
-        directions = ["left", "right", "up", "down"]
+    def handle_move(self, direction):
+        print("MOVE MADE:", direction)
+        self.backup_grid() 
+        new_grid = self.move.move(direction)
+        self.generate_cell.generate_new_cell()
+        self.print_grid(new_grid)     
 
-        for _ in range(2):
-            direction = random.choice(directions)
-            print("MOVE MADE:", direction)
-            
-            self.backup_grid()  # Save state before move
-            
-            self.move.move(direction)
-            self.generate_cell.generate_new_cell()
-            self.print_grid()
-        
-
-g = Grid()
-g.generate_cell.starting_board()
-g.print_grid()
-g.random_move()
-print("RESET")
-g.reset_to_previous()
-g.print_grid()
-
+        return new_grid
 
 

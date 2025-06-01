@@ -1,7 +1,7 @@
-from Cell import Cell
+from game.model.Cell import Cell
 
 class Move:
-    def __init__(self, grid):
+    def __init__(self, grid,):
         self.grid = grid.grid
         self.score = 0
 
@@ -87,3 +87,5 @@ class Move:
                 # Update the row's cell values
                 for i in range(len(row)):
                     row[i].value = final_row[i]
+
+        return self.grid

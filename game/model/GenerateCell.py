@@ -1,5 +1,5 @@
 import random
-from Cell import Cell
+from game.model.Cell import Cell
 
 class GenerateCell:
 
@@ -11,11 +11,6 @@ class GenerateCell:
 
     def cell_initial_value(self):
         return 2 if random.random() < 0.9 else 4
-
-    def random_coord(self):
-        x = random.randint(0, self.rows - 1)
-        y = random.randint(0, self.columns - 1)
-        return x, y
     
     def generate_new_cell(self):
         empty_cells = [

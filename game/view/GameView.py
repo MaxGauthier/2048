@@ -9,30 +9,29 @@ class GameView:
         self.grid_view = grid_view
         self.cell_renderer = CellRenderer(screen)
         self.screen.fill(WHITE)
+        self.grid_width = COLS * CELL_SIZE
+        self.grid_height = ROWS * CELL_SIZE
+
+        self.starting_x = (SCREEN_WIDTH - self.grid_width) // 2
+        self.starting_y = (SCREEN_HEIGHT - self.grid_height) // 2
 
     def draw_grid(self):
-        grid_width = COLS * CELL_SIZE
-        grid_height = ROWS * CELL_SIZE
-
-        starting_x = (SCREEN_WIDTH - grid_width) // 2
-        starting_y = (SCREEN_HEIGHT - grid_height) // 2
 
         for i in range(COLS + 1):
-            x_pos = starting_x + i * CELL_SIZE
-            pygame.draw.line(self.screen, GRAY, (x_pos, starting_y), (x_pos, starting_y + grid_height), LINE_WIDTH)
+            x_pos = self.starting_x + i * CELL_SIZE
+            pygame.draw.line(self.screen, GRAY, (x_pos, self.starting_y), (x_pos, self.starting_y + self.grid_height), LINE_WIDTH)
 
         for i in range(ROWS + 1):
-            y_pos = starting_y + i * CELL_SIZE
-            pygame.draw.line(self.screen, GRAY, (starting_x, y_pos), (starting_x + grid_width, y_pos), LINE_WIDTH)
+            y_pos = self.starting_y + i * CELL_SIZE
+            pygame.draw.line(self.screen, GRAY, (self.starting_x, y_pos), (self.starting_x + self.grid_width, y_pos), LINE_WIDTH)
     
-    def draw(self):
+    def draw(self, grid):
         self.draw_grid()
-
-        row = 0
-        col = 2
-        value = 4
-        x = (SCREEN_WIDTH - COLS * CELL_SIZE) // 2 + col * CELL_SIZE
-        y = (SCREEN_HEIGHT - ROWS * CELL_SIZE) // 2 + row * CELL_SIZE
-        self.cell_renderer.draw_cell(value, x, y)
-        self.cell_renderer.draw_number(value, x, y)
+        for row_idx, row in enumerate(grid):
+            for col_idx, cell in enumerate(row):
+                x = self.starting_x + col_idx * CELL_SIZE
+                y = self.starting_y + row_idx * CELL_SIZE
+                self.cell_renderer.draw_cell(cell.value, x, y)
+                self.cell_renderer.draw_number(cell.value, x, y)
+    
         pygame.display.flip()
