@@ -1,3 +1,4 @@
+import copy
 from game.model.Cell import Cell
 from game.model.Move import Move
 from game.model.GenerateCell import GenerateCell
@@ -8,6 +9,7 @@ class Grid:
         self.height = height
         self.rows = rows
         self.columns = columns
+        self.game_over = False
         self.grid = self._create_empty_grid()
         self.previous_grid = None
         self.move = Move(self)
@@ -31,6 +33,8 @@ class Grid:
     def backup_grid(self):
         self.previous_grid = [[Cell(cell.x, cell.y , cell.value) for cell in row]
         for row in self.grid]
+        self.previous_grid = copy.deepcopy(self.grid)
+        return self.previous_grid
 
     def print_grid(self, grid):
         for row in grid:
@@ -44,18 +48,28 @@ class Grid:
             print("No previous state to reset to.")
             return
 
-        # Copy values back to current grid
         for i in range(self.rows):
             for j in range(self.columns):
                 self.grid[i][j].value = self.previous_grid[i][j].value
 
+        self.game_over = False
+
+    def grid_values(self, grid):
+        return [[cell.value for cell in row] for row in grid]
+
     def handle_move(self, direction):
         print("MOVE MADE:", direction)
-        self.backup_grid() 
+        self.backup_grid()
         new_grid = self.move.move(direction)
-        self.generate_cell.generate_new_cell()
-        self.print_grid(new_grid)     
+        prev_grid_values = self.grid_values(self.previous_grid)
+        new_grid_values = self.grid_values(new_grid)
+        if prev_grid_values == new_grid_values:
+            print("tempppppppppppppp")
+            # Do something
+        else: 
+            self.generate_cell.generate_new_cell()
+            if self.move.no_moves_left():
+                self.game_over = True
+                print("Game Over") 
 
         return new_grid
-
-

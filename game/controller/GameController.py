@@ -3,9 +3,7 @@ import sys
 from utils.constants import *
 from game.view.GridView import GridView      
 from game.view.GameView import GameView
-from game.model.GenerateCell import GenerateCell
 from game.model.Grid import Grid
-from game.model.Cell import Cell
 
 
 class GameController:
@@ -29,20 +27,22 @@ class GameController:
                     pygame.quit()
                     sys.exit()
                 elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_LEFT:
-                        new_grid = self.grid.handle_move("left")
-                        self.game_view.draw(new_grid)
-                    elif event.key == pygame.K_RIGHT:
-                        new_grid = self.grid.handle_move("right")
-                        self.game_view.draw(new_grid)
-                    elif event.key == pygame.K_UP:
-                        self.grid.handle_move("up")
-                        self.game_view.draw(new_grid)
-                    elif event.key == pygame.K_DOWN:
-                        self.grid.handle_move("down")
-                        self.game_view.draw(new_grid)
-                    else:
-                        self.grid.handle_move("left")
-                        self.game_view.draw(new_grid)
+                    if self.grid.game_over:
+                        print("move ignored, game over, use reset")
+                    else: 
+                        if event.key == pygame.K_LEFT:
+                            new_grid = self.grid.handle_move("left")
+                            self.game_view.draw(new_grid)
+                        elif event.key == pygame.K_RIGHT:
+                            new_grid = self.grid.handle_move("right")
+                            self.game_view.draw(new_grid)
+                        elif event.key == pygame.K_UP:
+                            new_grid = self.grid.handle_move("up")
+                            self.game_view.draw(new_grid)
+                        elif event.key == pygame.K_DOWN:
+                            new_grid = self.grid.handle_move("down")
+                            self.game_view.draw(new_grid)
+                        else:
+                            continue
             self.clock.tick(60)
     

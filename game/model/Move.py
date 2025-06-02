@@ -1,5 +1,3 @@
-from game.model.Cell import Cell
-
 class Move:
     def __init__(self, grid,):
         self.grid = grid.grid
@@ -89,3 +87,17 @@ class Move:
                     row[i].value = final_row[i]
 
         return self.grid
+    
+    def no_moves_left(self):
+        size = len(self.grid)
+
+        for i in range(size):
+            for j in range(size):
+                val = self.grid[i][j].value
+                if val == 0:
+                    return False  
+                if j < size - 1 and val == self.grid[i][j+1].value:
+                    return False
+                if i < size - 1 and val == self.grid[i+1][j].value:
+                    return False
+        return True
