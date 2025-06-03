@@ -29,6 +29,15 @@ class Grid:
 
         print(grid)
         return grid
+    
+    def reset_game(self):
+        self.grid = self._create_empty_grid()
+        self.previous_grid = None
+        self.game_over = False
+        self.move = Move(self)
+        self.generate_cell = GenerateCell(self.grid, self.rows, self.columns)
+        self.generate_cell.starting_board()
+
 
     def backup_grid(self):
         self.previous_grid = [[Cell(cell.x, cell.y , cell.value) for cell in row]

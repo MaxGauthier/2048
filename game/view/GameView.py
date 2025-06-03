@@ -8,7 +8,6 @@ class GameView:
         self.screen = screen
         self.grid_view = grid_view
         self.cell_renderer = CellRenderer(screen)
-        self.screen.fill(WHITE)
         self.grid_width = COLS * CELL_SIZE
         self.grid_height = ROWS * CELL_SIZE
 
@@ -35,3 +34,5 @@ class GameView:
                 self.cell_renderer.draw_number(cell.value, x, y)
     
         pygame.display.flip()
+
+    

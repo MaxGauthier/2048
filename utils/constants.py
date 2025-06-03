@@ -9,6 +9,9 @@ SCREEN_HEIGHT = 800
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 GRAY = (120, 120, 120)
+ORANGE = (255, 165, 0)
+PURPLE = (138, 43, 226)
+
 GRIDCOLOR = (30, 30, 30)
 CELL_COLOR = (220, 220, 220)
 C2 = (238, 228, 218)
@@ -55,6 +58,10 @@ COLOR_MAP = {
     1048576: C1048576,
 }
 
+# Cells
+# -------------------------------------------
+CELL_SIZE = 120
+
 # Grid sizes
 # --------------------------------------------
 ROWS = 4
@@ -62,7 +69,11 @@ COLS = 4
 LINE_WIDTH = 11
 BORDER_RADIUS = 10
 
-# Cells
-# -------------------------------------------
-CELL_SIZE = 120
+GRID_WIDTH = COLS * CELL_SIZE
+GRID_HEIGHT = ROWS * CELL_SIZE
+
+# RESET BUTTON
+# -----------------------------------------------
+BTN_WIDTH = 100
+BTN_HEIGHT = 50
 
