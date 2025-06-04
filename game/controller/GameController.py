@@ -3,6 +3,7 @@ import sys
 from utils.constants import *
 from game.view.GridView import GridView      
 from game.view.GameView import GameView
+from game.view.ScoreView import ScoreView
 from game.view.Button import Button
 from game.model.Grid import Grid
 
@@ -19,8 +20,8 @@ class GameController:
         self.game_view = GameView(self.screen, self.grid_view)
 
         self.reset_btn = Button(
-            x = 550,
-            y = 50,
+            x = 550,    # Adjust
+            y = 50,     # Adjust
             width = BTN_WIDTH,
             height = BTN_HEIGHT,
             color = ORANGE,
@@ -30,15 +31,17 @@ class GameController:
         )
 
         self.undo_btn = Button(
-            x = 150,
-            y = 50,
+            x = 150,    # Adjust
+            y = 50,     # Adjust
             width = BTN_WIDTH,
             height = BTN_HEIGHT,
             color = PURPLE,
             text = "UNDO",
             text_color = WHITE,
             font_size = 30 
-        ) 
+        )
+
+        self.score = ScoreView("SCORE", (350, 50))  # Adjust
 
     def run(self):
         while True:
@@ -59,6 +62,7 @@ class GameController:
                     else: 
                         if event.key == pygame.K_LEFT:
                             self.grid.handle_move("left")
+
                         elif event.key == pygame.K_RIGHT:
                             self.grid.handle_move("right")
                         elif event.key == pygame.K_UP:
@@ -68,9 +72,12 @@ class GameController:
                         else:
                             continue
 
+            self.score.set_score(self.grid.score)
+
             self.screen.fill(WHITE)  
             self.undo_btn.draw_btn(self.screen)
             self.reset_btn.draw_btn(self.screen)
+            self.score.draw(self.screen)
             self.game_view.draw(self.grid.grid)
             pygame.display.flip()
             self.clock.tick(60)

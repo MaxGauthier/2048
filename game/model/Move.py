@@ -2,6 +2,13 @@ class Move:
     def __init__(self, grid,):
         self.grid = grid.grid
         self.score = 0
+        self.previous_score = 0
+
+    def save_previous_score(self):
+        self.previous_score = self.score
+    
+    def restore_previous_score(self):
+        self.score = self.previous_score
 
     def remove_empty_cells(self, row):
         non_zeros = []
@@ -33,8 +40,7 @@ class Move:
             if row[i] == row[i - 1] and row[i] != 0:
                 row[i] *= 2
                 row[i - 1] = 0
-                #score += row[i].value
-
+                self.score += row[i]
         return row
     
     def combine_left(self, row):               
@@ -42,7 +48,7 @@ class Move:
             if row[i] == row[i + 1] and row[i] != 0:
                 row[i] *= 2
                 row[i + 1] = 0
-                #score += row[i].value
+                self.score += row[i]
 
         return row
 

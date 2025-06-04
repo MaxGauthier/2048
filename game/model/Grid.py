@@ -16,6 +16,10 @@ class Grid:
         self.generate_cell = GenerateCell(self.grid, self.rows, self.columns)
         self.generate_cell.starting_board()
 
+    @property
+    def score(self):
+        return self.move.score
+
     def _create_empty_grid(self):
         return [[Cell(x, y) for x in range(self.columns)] for y in range(self.rows)]
 
@@ -62,6 +66,7 @@ class Grid:
                 self.grid[i][j].value = self.previous_grid[i][j].value
 
         self.game_over = False
+        self.move.restore_previous_score()
 
     def grid_values(self, grid):
         return [[cell.value for cell in row] for row in grid]
@@ -69,6 +74,7 @@ class Grid:
     def handle_move(self, direction):
         print("MOVE MADE:", direction)
         self.backup_grid()
+        self.move.save_previous_score()
         new_grid = self.move.move(direction)
         prev_grid_values = self.grid_values(self.previous_grid)
         new_grid_values = self.grid_values(new_grid)
