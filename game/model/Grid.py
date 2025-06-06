@@ -44,10 +44,7 @@ class Grid:
 
 
     def backup_grid(self):
-        self.previous_grid = [[Cell(cell.x, cell.y , cell.value) for cell in row]
-        for row in self.grid]
-        self.previous_grid = copy.deepcopy(self.grid)
-        return self.previous_grid
+        return copy.deepcopy(self.grid)
 
     def print_grid(self, grid):
         for row in grid:
@@ -55,6 +52,15 @@ class Grid:
             for cell in row:
                 t.append(cell.value)
             print(t)
+
+    def get_grid_state(self):
+        grid_state = []
+        for row in self.grid:
+            current_row = []
+            for cell in row:
+                current_row.append(cell.value)
+            grid_state.append(current_row)
+        return grid_state
 
     def reset_to_previous(self):
         if self.previous_grid is None:
@@ -73,12 +79,12 @@ class Grid:
 
     def handle_move(self, direction):
         print("MOVE MADE:", direction)
-        self.backup_grid()
+        self.previous_grid = self.backup_grid()
         self.move.save_previous_score()
-        new_grid = self.move.move(direction)
+        self.move.move(direction)
         prev_grid_values = self.grid_values(self.previous_grid)
-        new_grid_values = self.grid_values(new_grid)
-        if prev_grid_values == new_grid_values:
+        current_grid_values = self.grid_values(self.grid)
+        if prev_grid_values == current_grid_values:
             print("tempppppppppppppp")
             # Do something
         else: 
@@ -87,4 +93,6 @@ class Grid:
                 self.game_over = True
                 print("Game Over") 
 
-        return new_grid
+        current_state = self.get_grid_state()
+        print(current_state)
+        #return current_grid_values
