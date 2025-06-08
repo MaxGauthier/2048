@@ -1,4 +1,5 @@
 import copy
+import numpy as np
 from game.model.Cell import Cell
 from game.model.Move import Move
 from game.model.GenerateCell import GenerateCell
@@ -42,7 +43,6 @@ class Grid:
         self.generate_cell = GenerateCell(self.grid, self.rows, self.columns)
         self.generate_cell.starting_board()
 
-
     def backup_grid(self):
         return copy.deepcopy(self.grid)
 
@@ -76,6 +76,11 @@ class Grid:
 
     def grid_values(self, grid):
         return [[cell.value for cell in row] for row in grid]
+    
+    def normalize_grid(self):
+        numeric_grid = np.array(self.grid_values(self.grid), dtype=float)
+        normalized_grid = np.log2(numeric_grid + 1) / 17.0
+        return np.round(normalized_grid, 2)
 
     def handle_move(self, direction):
         print("MOVE MADE:", direction)
@@ -93,6 +98,6 @@ class Grid:
                 self.game_over = True
                 print("Game Over") 
 
-        current_state = self.get_grid_state()
-        print(current_state)
-        #return current_grid_values
+        #current_state = self.get_grid_state()
+        #print(current_state)
+        #print(self.normalize_grid())
