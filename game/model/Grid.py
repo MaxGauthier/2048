@@ -1,5 +1,6 @@
 import copy
 import numpy as np
+import torch as T
 from game.model.Cell import Cell
 from game.model.Move import Move
 from game.model.GenerateCell import GenerateCell
@@ -97,7 +98,7 @@ class Grid:
             if self.move.no_moves_left():
                 self.game_over = True
                 print("Game Over") 
-
-        #current_state = self.get_grid_state()
-        #print(current_state)
-        #print(self.normalize_grid())
+        
+        pytorch_test = T.rand(5,3)
+        print(pytorch_test)
+        
