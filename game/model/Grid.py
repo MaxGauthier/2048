@@ -99,6 +99,3 @@ class Grid:
                 self.game_over = True
                 print("Game Over") 
         
-        pytorch_test = T.rand(5,3)
-        print(pytorch_test)
-        
