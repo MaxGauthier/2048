@@ -5,18 +5,21 @@ import numpy as np
 import random
 
 class DQNAgent:
-
-    def __init__(self, state_shape, action_size, gamma=0.99, lr=1e-3, epsilon=1.0, epsilon_min=0.1, epsilon_decay=0.995):
+    # gamma: Factor for short (0) or long (1) term reward
+    # epsilon: Randomness factor of actions
+    # epsilon_min: Lowest value of randomness allowed
+    # epsilon_decay: Speed at which the randomness becomes less random
+    def __init__(self, state_shape, num_of_actions, gamma=0.99, lr=1e-3, epsilon=1.0, epsilon_min=0.1, epsilon_decay=0.995):
         self.device = T.device("cuda" if T.cuda.is_available() else "cpu")
 
-        self.action_size = action_size
+        self.num_of_actions = num_of_actions
         self.gamma = gamma
         self.epsilon = epsilon
         self.epsilon_min = epsilon_min
         self.epsilon_decay = epsilon_decay
 
-        self.model = DQN().to(self.device)
-        self.target_model = DQN().to(self.device)
+        self.model = DQN(self.device)
+        self.target_model = DQN(self.device)
         self.update_target_model()
 
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
@@ -27,7 +30,7 @@ class DQNAgent:
 
     def act(self, state):
         if np.random.rand() < self.epsilon:
-            return random.randrange(self.action_size)
+            return random.randrange(self.num_of_actions)
         state = T.FloatTensor(state).unsqueeze(0).to(self.device)
         with T.no_grad():
             q_values = self.model(state)
