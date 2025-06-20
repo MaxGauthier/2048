@@ -5,7 +5,10 @@ class Env:
     def __init__(self, grid):
         self.grid = grid
         self.action_space = 4
-        self.state_shape = (self.grid.rows, self.grid.coulumns)
+        self.state_shape = (self.grid.rows, self.grid.columns)
+
+    def sample_action(self):
+        return np.random.randint(0, self.action_space - 1)
 
     def reset(self):
         self.grid.reset_game()
@@ -22,11 +25,11 @@ class Env:
         new_grid = self.grid.grid_values(self.grid.grid)
         reward = self.grid.score - previous_score
         done = self.grid.game_over
-
+        truncated = False
         if previous_grid == new_grid:
             reward = -1
         next_state = self._get_state()
-        return next_state, reward, done, {}
+        return next_state, reward, done, truncated, {}
     
     def _get_state(self):
         return np.array(self.grid.normalize_grid(), dtype=np.float32).flatten()

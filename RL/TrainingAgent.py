@@ -18,10 +18,9 @@ class TrainingAgent:
         self.batch_size = 32               # Training batch size
         self.hidden_size = hidden_size
 
+        self.device = T.device("cuda" if T.cuda.is_available() else "cpu")
         self.loss_fn = nn.MSELoss()
         self.optimizer = None  # Will be initialized after model creation
-
-        self.actions = list(range(self.num_actions))  # [0, 1, 2, 3]
 
     def train(self, episodes):
         grid = Grid(ROWS, COLS, SCREEN_WIDTH, SCREEN_HEIGHT)
@@ -29,6 +28,7 @@ class TrainingAgent:
 
         num_states = np.prod(self.env.get_state_shape())
         num_actions = self.env.get_action_space()
+        self.actions = list(range(num_actions))  # [0, 1, 2, 3]
         epsilon = 1
         memory = ReplayMemory(self.replay_memory_size)
 
@@ -36,10 +36,14 @@ class TrainingAgent:
         target_net = DQN(num_states, num_states, num_actions)
         target_net.load_state_dict(policy_net.state_dict())
 
+        policy_net.to(self.device)
+        target_net.to(self.device)
+        print('Training DQN agent...')
+
         print('Policy (random, before training):')
         self.print_dqn(policy_net)
 
-        self.optimizer = T.optim.Adam(policy_net.parameters(), self.alpha)
+        self.optimizer = optim.Adam(policy_net.parameters(), self.alpha)
         rewards_per_episode = np.zeros(episodes)
         
         epsilon_history = []
@@ -53,7 +57,7 @@ class TrainingAgent:
 
             while(not terminated and not truncated):
                 if random.random() < epsilon:
-                    action = self.env.action_space.sample()
+                    action = self.env.sample_action()
                 else:
                     with T.no_grad():
                         action = policy_net(self.state_to_dqn_input(state, num_states)).argmax().item()
@@ -66,7 +70,7 @@ class TrainingAgent:
             if reward == 1:
                 rewards_per_episode[i] = 1
             
-            if len(memory) > self.batch_size and np.sum(rewards_per_episode) > 0:
+            if len(memory) > self.batch_size:
                 batch = memory.sample(self.batch_size)
                 self.optimize(batch, policy_net, target_net)
 
@@ -77,21 +81,17 @@ class TrainingAgent:
                     target_net.load_state_dict(policy_net.state_dict())
                     step_count = 0
 
-            T.save(policy_net.state_dict(), "SOMETHING?????")
-            
+        T.save(policy_net.state_dict(), "policy_net.pth")
 
-
-
-
-    def state_to_dqn_input(self, state:int, num_states:int)->T.Tensor:
-        input_tensor = T.zeros(num_states)
+    def state_to_dqn_input(self, state: int, num_states: int, device=None) -> T.Tensor:
+        input_tensor = T.zeros(num_states, device=device)
         input_tensor[state] = 1
         return input_tensor
     
     def optimize(self, mini_batch, policy_dqn, target_dqn):
 
         # Get number of input nodes
-        num_states = policy_dqn.fc1.in_features
+        num_states = policy_dqn.connected_layer.in_features
 
         current_q_list = []
         target_q_list = []
@@ -105,17 +105,16 @@ class TrainingAgent:
             else:
                 # Calculate target q value 
                 with T.no_grad():
-                    target = T.FloatTensor(
-                        reward + self.gamma * target_dqn(self.state_to_dqn_input(new_state, num_states)).max()
-                    )
-
+                    value = reward + self.gamma * target_dqn(self.state_to_dqn_input(new_state, num_states, self.device)).max()
+                    target = T.tensor([value], device=self.device, dtype=T.float32)
             # Get the current set of Q values
-            current_q = policy_dqn(self.state_to_dqn_input(state, num_states))
+            current_q = policy_dqn(self.state_to_dqn_input(state, num_states, self.device))
             current_q_list.append(current_q)
 
             # Get the target set of Q values
-            target_q = target_dqn(self.state_to_dqn_input(state, num_states)) 
+            target_q = target_dqn(self.state_to_dqn_input(state, num_states, self.device)) 
             # Adjust the specific action to the target that was just calculated
+            target_q = current_q.clone().detach()  # Clone to avoid modifying the original tensor
             target_q[action] = target
             target_q_list.append(target_q)
                 
@@ -135,8 +134,11 @@ class TrainingAgent:
         num_actions = env.get_action_space()
 
         policy_net = DQN(num_states, num_states, num_actions)
-        policy_net.load_state_dict(T.load("SOMETHING??????"))
+        policy_net.load_state_dict(T.load("policy_net.pth"))
         policy_net.eval()
+
+        policy_net.to(self.device)
+        print('Testing DQN agent...')
 
         print("Policy (trained): ")
         self.print_dqn(policy_net)
@@ -148,20 +150,20 @@ class TrainingAgent:
 
             while not terminated and not truncated:
                 with T.no_grad():
-                    action = policy_net(self.state_to_dqn_input(state, num_states)).argmax().item()
+                    action = policy_net(self.state_to_dqn_input(state, num_states, self.device)).argmax().item()
 
                 state,reward,terminated,truncated,_ = env.step(action)
 
     def print_dqn(self, dqn):
-        num_states = dqn.conected_layers.in_features
+        num_states = dqn.connected_layer.in_features
 
         for s in range(num_states):
             q_values = ''
-            for q in dqn(self.state_to_dqn_input(s, num_states)).toList():
+            for q in dqn(self.state_to_dqn_input(s, num_states, self.device)).tolist():
                 q_values += "{:+.2f}".format(q)+' '
             q_values = q_values.rstrip()
 
-            best_action = self.ACTIONS[dqn(self.state_to_dqn_input(s, num_states)).argmax()]
+            best_action = self.actions[dqn(self.state_to_dqn_input(s, num_states, self.device)).argmax()]
 
             # Print policy in the format of: state, action, q values
             # The printed layout matches the FrozenLake map.

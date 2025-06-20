@@ -65,7 +65,7 @@ class Grid:
 
     def reset_to_previous(self):
         if self.previous_grid is None:
-            print("No previous state to reset to.")
+            #print("No previous state to reset to.")
             return
 
         for i in range(self.rows):
@@ -84,14 +84,14 @@ class Grid:
         return np.round(normalized_grid, 2)
 
     def handle_move(self, direction):
-        print("MOVE MADE:", direction)
+        #print("MOVE MADE:", direction)
         self.previous_grid = self.backup_grid()
         self.move.save_previous_score()
         self.move.move(direction)
         prev_grid_values = self.grid_values(self.previous_grid)
         current_grid_values = self.grid_values(self.grid)
         if prev_grid_values == current_grid_values:
-            print("tempppppppppppppp")
+            return #print("tempppppppppppppp")
             # Do something
         else: 
             self.generate_cell.generate_new_cell()
