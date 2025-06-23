@@ -97,5 +97,5 @@ class Grid:
             self.generate_cell.generate_new_cell()
             if self.move.no_moves_left():
                 self.game_over = True
-                print("Game Over") 
+                #print("Game Over") 
         

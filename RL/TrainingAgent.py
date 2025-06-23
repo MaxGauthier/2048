@@ -8,19 +8,19 @@ from RL.Env import Env
 from RL.ReplayMemory import ReplayMemory
 from game.model.Grid import Grid
 from utils.constants import *
+import matplotlib.pyplot as plt
 
 class TrainingAgent:
     def __init__(self, hidden_size=128):
-        self.alpha = 0.001                 # Learning rate
-        self.gamma = 0.9                   # Discount factor
-        self.sync_rate = 10                # Sync policy and target net every N steps
-        self.replay_memory_size = 1000     # Replay buffer size
-        self.batch_size = 32               # Training batch size
+        self.alpha = 0.001
+        self.gamma = 0.9
+        self.sync_rate = 10
+        self.replay_memory_size = 1000
+        self.batch_size = 32
         self.hidden_size = hidden_size
 
         self.device = T.device("cuda" if T.cuda.is_available() else "cpu")
         self.loss_fn = nn.MSELoss()
-        self.optimizer = None  # Will be initialized after model creation
 
     def train(self, episodes):
         grid = Grid(ROWS, COLS, SCREEN_WIDTH, SCREEN_HEIGHT)
@@ -28,104 +28,103 @@ class TrainingAgent:
 
         num_states = np.prod(self.env.get_state_shape())
         num_actions = self.env.get_action_space()
-        self.actions = list(range(num_actions))  # [0, 1, 2, 3]
+        self.actions = list(range(num_actions))
         epsilon = 1
         memory = ReplayMemory(self.replay_memory_size)
 
-        policy_net = DQN(num_states, num_states, num_actions)
-        target_net = DQN(num_states, num_states, num_actions)
-        target_net.load_state_dict(policy_net.state_dict())
+        self.policy_net = DQN(num_states, self.hidden_size, num_actions).to(self.device)
+        self.target_net = DQN(num_states, self.hidden_size, num_actions).to(self.device)
+        self.target_net.load_state_dict(self.policy_net.state_dict())
 
-        policy_net.to(self.device)
-        target_net.to(self.device)
         print('Training DQN agent...')
-
         print('Policy (random, before training):')
-        self.print_dqn(policy_net)
+        self.print_dqn(self.policy_net)
 
-        self.optimizer = optim.Adam(policy_net.parameters(), self.alpha)
+        self.optimizer = optim.Adam(self.policy_net.parameters(), self.alpha)
         rewards_per_episode = np.zeros(episodes)
-        
         epsilon_history = []
-
         step_count = 0
 
         for i in range(episodes):
-            state = self.env.reset()[0]
+            state = self.env.reset()
             terminated = False
-            truncated = False
+            total_reward = 0
 
-            while(not terminated and not truncated):
+            while not terminated:
                 if random.random() < epsilon:
-                    action = self.env.sample_action()
+                    action = random.choice(self.actions)
                 else:
                     with T.no_grad():
-                        action = policy_net(self.state_to_dqn_input(state, num_states)).argmax().item()
+                        input_tensor = self.state_to_dqn_input(state, num_states).to(self.device)
+                        action = self.policy_net(input_tensor).argmax().item()
 
-                new_state, reward, terminated, truncated, _ = self.env.step(action)
+                new_state, reward, terminated, _ = self.env.step(action)
                 memory.append((state, action, new_state, reward, terminated))
                 state = new_state
+                total_reward += reward
                 step_count += 1
 
-            if reward == 1:
-                rewards_per_episode[i] = 1
-            
+            rewards_per_episode[i] = total_reward
+
             if len(memory) > self.batch_size:
                 batch = memory.sample(self.batch_size)
-                self.optimize(batch, policy_net, target_net)
+                self.optimize(batch)
 
-                epsilon = max(epsilon - 1/episodes, 0)
+                epsilon = max(epsilon - 1 / episodes, 0)
                 epsilon_history.append(epsilon)
 
                 if step_count > self.sync_rate:
-                    target_net.load_state_dict(policy_net.state_dict())
+                    self.target_net.load_state_dict(self.policy_net.state_dict())
                     step_count = 0
 
-        T.save(policy_net.state_dict(), "policy_net.pth")
+        T.save(self.policy_net.state_dict(), "policy_net.pth")
+        self.env.grid.print_grid(self.env.grid.grid)
 
-    def state_to_dqn_input(self, state: int, num_states: int, device=None) -> T.Tensor:
-        input_tensor = T.zeros(num_states, device=device)
-        input_tensor[state] = 1
-        return input_tensor
-    
-    def optimize(self, mini_batch, policy_dqn, target_dqn):
+        plt.plot(rewards_per_episode, label='Reward per Episode')
+        plt.plot(np.convolve(rewards_per_episode, np.ones(10)/10, mode='valid'), label='10-Episode Average')
+        plt.xlabel('Episode')
+        plt.ylabel('Total Reward')
+        plt.title('DQN Training Reward Progress')
+        plt.legend()
+        plt.show()
 
-        # Get number of input nodes
-        num_states = policy_dqn.connected_layer.in_features
+    def state_to_dqn_input(self, state: np.ndarray, num_states: int) -> T.Tensor:
+        """
+        Assumes `state` is a flattened numpy array (e.g. 16,) of floats.
+        """
+        if isinstance(state, np.ndarray):
+            return T.tensor(state, dtype=T.float32).view(1, num_states)
+        else:
+            raise TypeError("Expected state to be a numpy array")
 
+    def optimize(self, mini_batch):
+        num_states = self.policy_net.connected_layer.in_features
         current_q_list = []
         target_q_list = []
 
         for state, action, new_state, reward, terminated in mini_batch:
+            state_tensor = self.state_to_dqn_input(state, num_states).to(self.device)
+            new_state_tensor = self.state_to_dqn_input(new_state, num_states).to(self.device)
 
-            if terminated: 
-                # Agent either reached goal (reward=1) or fell into hole (reward=0)
-                # When in a terminated state, target q value should be set to the reward.
-                target = T.FloatTensor([reward])
-            else:
-                # Calculate target q value 
-                with T.no_grad():
-                    value = reward + self.gamma * target_dqn(self.state_to_dqn_input(new_state, num_states, self.device)).max()
-                    target = T.tensor([value], device=self.device, dtype=T.float32)
-            # Get the current set of Q values
-            current_q = policy_dqn(self.state_to_dqn_input(state, num_states, self.device))
+            with T.no_grad():
+                if terminated:
+                    target = T.tensor([reward], device=self.device)
+                else:
+                    target = T.tensor([reward + self.gamma * self.target_net(new_state_tensor).max().item()],
+                                      device=self.device)
+
+            current_q = self.policy_net(state_tensor)
             current_q_list.append(current_q)
 
-            # Get the target set of Q values
-            target_q = target_dqn(self.state_to_dqn_input(state, num_states, self.device)) 
-            # Adjust the specific action to the target that was just calculated
-            target_q = current_q.clone().detach()  # Clone to avoid modifying the original tensor
-            target_q[action] = target
+            target_q = current_q.clone().detach()
+            target_q[0][action] = target
             target_q_list.append(target_q)
-                
-        # Compute loss for the whole minibatch
-        loss = self.loss_fn(T.stack(current_q_list), T.stack(target_q_list))
 
-        # Optimize the model
+        loss = self.loss_fn(T.cat(current_q_list), T.cat(target_q_list))
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-    
+
     def test(self, episodes):
         grid = Grid(ROWS, COLS, SCREEN_WIDTH, SCREEN_HEIGHT)
         env = Env(grid)
@@ -133,40 +132,36 @@ class TrainingAgent:
         num_states = np.prod(env.get_state_shape())
         num_actions = env.get_action_space()
 
-        policy_net = DQN(num_states, num_states, num_actions)
-        policy_net.load_state_dict(T.load("policy_net.pth"))
-        policy_net.eval()
+        self.policy_net = DQN(num_states, self.hidden_size, num_actions).to(self.device)
+        self.policy_net.load_state_dict(T.load("policy_net.pth", map_location=self.device))
+        self.policy_net.eval()
 
-        policy_net.to(self.device)
         print('Testing DQN agent...')
-
         print("Policy (trained): ")
-        self.print_dqn(policy_net)
+        self.print_dqn(self.policy_net)
 
         for i in range(episodes):
-            state = env.reset()[0]
+            state = env.reset()
             terminated = False
-            truncated = False
 
-            while not terminated and not truncated:
+            while not terminated:
                 with T.no_grad():
-                    action = policy_net(self.state_to_dqn_input(state, num_states, self.device)).argmax().item()
+                    input_tensor = self.state_to_dqn_input(state, num_states).to(self.device)
+                    action = self.policy_net(input_tensor).argmax().item()
 
-                state,reward,terminated,truncated,_ = env.step(action)
+                state, reward, terminated, _ = env.step(action)
 
     def print_dqn(self, dqn):
         num_states = dqn.connected_layer.in_features
 
         for s in range(num_states):
-            q_values = ''
-            for q in dqn(self.state_to_dqn_input(s, num_states, self.device)).tolist():
-                q_values += "{:+.2f}".format(q)+' '
-            q_values = q_values.rstrip()
+            dummy_input = T.zeros(1, num_states).to(self.device)
+            dummy_input[0][s] = 1.0  # One-hot style
 
-            best_action = self.actions[dqn(self.state_to_dqn_input(s, num_states, self.device)).argmax()]
+            q_values_tensor = dqn(dummy_input)
+            q_values = ' '.join("{:+.2f}".format(q) for q in q_values_tensor.tolist()[0])
+            best_action = self.actions[q_values_tensor.argmax().item()]
 
-            # Print policy in the format of: state, action, q values
-            # The printed layout matches the FrozenLake map.
-            print(f'{s:02},{best_action},[{q_values}]', end=' ')         
-            if (s+1)%4==0:
-                print() # Print a newline every 4 states
+            print(f'{s:02},{best_action},[{q_values}]', end=' ')
+            if (s + 1) % 4 == 0:
+                print()
