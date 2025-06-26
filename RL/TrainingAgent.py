@@ -1,4 +1,6 @@
 import random
+import os
+import pickle
 import numpy as np
 import torch as T
 import torch.nn as nn
@@ -13,16 +15,16 @@ import matplotlib.pyplot as plt
 class TrainingAgent:
     def __init__(self, hidden_size=128):
         self.alpha = 0.001
-        self.gamma = 0.9
-        self.sync_rate = 10
-        self.replay_memory_size = 1000
+        self.gamma = 0.99
+        self.sync_rate = 100
+        self.replay_memory_size = 5000
         self.batch_size = 32
         self.hidden_size = hidden_size
 
         self.device = T.device("cuda" if T.cuda.is_available() else "cpu")
         self.loss_fn = nn.MSELoss()
 
-    def train(self, episodes):
+    def train(self, episodes, start_episode=0, start_epsilon=1.0):
         grid = Grid(ROWS, COLS, SCREEN_WIDTH, SCREEN_HEIGHT)
         self.env = Env(grid)
 
@@ -36,6 +38,23 @@ class TrainingAgent:
         self.target_net = DQN(num_states, self.hidden_size, num_actions).to(self.device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
 
+        checkpoint_path = "checkpoint.pth"
+        if os.path.exists(checkpoint_path):
+            checkpoint = T.load(checkpoint_path, map_location=self.device)
+            self.policy_net.load_state_dict(checkpoint['model_state_dict'])
+            self.target_net.load_state_dict(self.policy_net.state_dict())
+            self.optimizer = optim.Adam(self.policy_net.parameters(), lr=self.alpha)
+            self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            epsilon = checkpoint['epsilon']
+            start_episode = checkpoint['episode'] + 1
+            print(f"Loaded checkpoint from episode {checkpoint['episode']}, continuing training.")
+            self.load_replay_memory()
+
+            print("Loaded existing model weights, continuing training.")
+        else:
+            self.optimizer = optim.Adam(self.policy_net.parameters(), self.alpha)
+            print("No checkpoint found, training from scratch.")
+
         print('Training DQN agent...')
         print('Policy (random, before training):')
         self.print_dqn(self.policy_net)
@@ -45,7 +64,7 @@ class TrainingAgent:
         epsilon_history = []
         step_count = 0
 
-        for i in range(episodes):
+        for i in range(start_episode, start_episode + episodes):
             state = self.env.reset()
             terminated = False
             total_reward = 0
@@ -70,18 +89,31 @@ class TrainingAgent:
                 batch = memory.sample(self.batch_size)
                 self.optimize(batch)
 
-                epsilon = max(epsilon - 1 / episodes, 0)
+                epsilon = max(epsilon * 0.995, 0.1)
                 epsilon_history.append(epsilon)
-
+                print(f"Episode {i + 1}/{episodes}, Total Reward: {total_reward}, Epsilon: {epsilon:.4f}")
                 if step_count > self.sync_rate:
                     self.target_net.load_state_dict(self.policy_net.state_dict())
                     step_count = 0
 
-        T.save(self.policy_net.state_dict(), "policy_net.pth")
+            if i % 1000 == 0 or i == start_episode + episodes - 1:
+                checkpoint = {
+                    'episode': i,
+                    'model_state_dict': self.policy_net.state_dict(),
+                    'target_state_dict': self.target_net.state_dict(),
+                    'optimizer_state_dict': self.optimizer.state_dict(),
+                    'epsilon': epsilon
+                }
+                T.save(checkpoint, "checkpoint.pth")
+                self.save_replay_memory()
+                print(f"Saved checkpoint at episode {i}")
+
+
+        print(f"Replay memory size: {len(memory)}")
         self.env.grid.print_grid(self.env.grid.grid)
 
         plt.plot(rewards_per_episode, label='Reward per Episode')
-        plt.plot(np.convolve(rewards_per_episode, np.ones(10)/10, mode='valid'), label='10-Episode Average')
+        plt.plot(np.convolve(rewards_per_episode, np.ones(1000)/1000, mode='valid'), label='1000-Episode Average')
         plt.xlabel('Episode')
         plt.ylabel('Total Reward')
         plt.title('DQN Training Reward Progress')
@@ -165,3 +197,18 @@ class TrainingAgent:
             print(f'{s:02},{best_action},[{q_values}]', end=' ')
             if (s + 1) % 4 == 0:
                 print()
+
+
+    def save_replay_memory(self, filename="replay_memory.pkl"):
+        with open(filename, "wb") as f:
+            pickle.dump(self.memory.memory, f)
+        print(f"Replay memory saved with {len(self.memory)} transitions.")
+
+    def load_replay_memory(self, filename="replay_memory.pkl"): 
+        if os.path.exists(filename):
+            with open(filename, "rb") as f:
+                memory_list = pickle.load(f)
+            self.memory.memory = deque(memory_list, maxlen=self.replay_memory_size)
+            print(f"Replay memory loaded with {len(self.memory)} transitions.")
+        else:
+            print("No replay memory file found, starting fresh.")

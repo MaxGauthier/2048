@@ -1,3 +1,5 @@
+import pickle
+import os
 import numpy as np
 from game.model.Grid import *
 
@@ -20,14 +22,29 @@ class Env:
 
         previous_score = self.grid.score
         previous_grid = self.grid.grid_values(self.grid.grid)
+        previous_max_tile = max([max(cell.value for cell in row) for row in self.grid.grid])
+
+
         self.grid.handle_move(direction_str)
 
         new_grid = self.grid.grid_values(self.grid.grid)
-        reward = self.grid.score - previous_score
-        done = self.grid.game_over
+        new_max = max([max(cell.value for cell in row) for row in self.grid.grid])
+
+        next_state = self._get_state()
+
+        # Reward logic
+        reward = 0
         if previous_grid == new_grid:
             reward = -1
-        next_state = self._get_state()
+        else:
+            reward += 1
+        top_right_corner = new_grid[0][0]
+        if new_max == top_right_corner:
+            reward += reward * 2
+
+        reward += self.snake_pattern(new_grid)
+        done = self.grid.game_over
+
         return next_state, reward, done, {}
     
     def _get_state(self):
@@ -41,3 +58,18 @@ class Env:
     
     def get_state_shape(self):
         return self.state_shape
+    
+    def snake_pattern(self, grid):
+        ideal_path = [(0, 0), (0, 1), (0, 2), (0, 3),
+                      (1, 3), (1, 2), (1, 1), (1, 0),
+                      (2, 0), (2, 1), (2, 2), (2, 3),
+                      (3, 3), (3, 2), (3, 1), (3, 0)
+                    ]
+        values = [grid[row][col] for row, col in ideal_path]
+        score = 0
+        for i in range(len(values) - 1):
+            if values[i] >= values[i + 1]:
+                score += 1
+            else:
+                break
+        return score * 2
