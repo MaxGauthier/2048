@@ -62,7 +62,6 @@ class GameController:
                     else: 
                         if event.key == pygame.K_LEFT:
                             self.grid.handle_move("left")
-
                         elif event.key == pygame.K_RIGHT:
                             self.grid.handle_move("right")
                         elif event.key == pygame.K_UP:

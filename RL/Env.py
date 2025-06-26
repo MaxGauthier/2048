@@ -1,5 +1,4 @@
-import pickle
-import os
+import math
 import numpy as np
 from game.model.Grid import *
 
@@ -10,7 +9,7 @@ class Env:
         self.state_shape = (self.grid.rows, self.grid.columns)
 
     def sample_action(self):
-        return np.random.randint(0, self.action_space - 1)
+        return np.random.randint(0, self.action_space)
 
     def reset(self):
         self.grid.reset_game()
@@ -21,34 +20,39 @@ class Env:
         direction_str = directions[action]
 
         previous_score = self.grid.score
-        previous_grid = self.grid.grid_values(self.grid.grid)
-        previous_max_tile = max([max(cell.value for cell in row) for row in self.grid.grid])
-
+        previous_grid_values = self.grid.grid_values(self.grid.grid)
 
         self.grid.handle_move(direction_str)
 
-        new_grid = self.grid.grid_values(self.grid.grid)
+        new_score = self.grid.score
+        new_grid_values = self.grid.grid_values(self.grid.grid)
         new_max = max([max(cell.value for cell in row) for row in self.grid.grid])
 
         next_state = self._get_state()
 
         # Reward logic
-        reward = 0
-        if previous_grid == new_grid:
-            reward = -1
+        reward = 0.0
+        if previous_grid_values == new_grid_values:
+            reward = -5.0
         else:
-            reward += 1
-        top_right_corner = new_grid[0][0]
-        if new_max == top_right_corner:
-            reward += reward * 2
+            score_increase = new_score - previous_score
+            reward += score_increase
+            empty_cells_before = sum(1 for row in previous_grid_values for cell_val in row if cell_val == 0)
+            empty_cells_after = sum(1 for row in new_grid_values for cell_val in row if cell_val == 0)
+            reward += (empty_cells_after - empty_cells_before) * 0.5        
 
-        reward += self.snake_pattern(new_grid)
+            top_right_corner = new_grid_values[0][0]
+            if new_max == top_right_corner:
+                reward += 10.0
+
+            reward += self.snake_pattern(new_grid_values) * 0.2
         done = self.grid.game_over
 
         return next_state, reward, done, {}
     
     def _get_state(self):
-        return np.array(self.grid.normalize_grid(), dtype=np.float32).flatten()
+        normalized_grid = np.array(self.grid.normalize_grid(), dtype=np.float32.flatten())
+        return T.from_numpy(normalized_grid)
     
     def render(self):
         self.grid.print_grid(self.grid.grid)
@@ -65,11 +69,14 @@ class Env:
                       (2, 0), (2, 1), (2, 2), (2, 3),
                       (3, 3), (3, 2), (3, 1), (3, 0)
                     ]
-        values = [grid[row][col] for row, col in ideal_path]
+        values = []
+        for row, col in ideal_path:
+            val = grid[row][col]
+            values.append(math.log2(val) if val > 0 else 0.0)
         score = 0
         for i in range(len(values) - 1):
             if values[i] >= values[i + 1]:
                 score += 1
             else:
                 break
-        return score * 2
+        return float(score)

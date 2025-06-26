@@ -5,34 +5,41 @@ import numpy as np
 import torch as T
 import torch.nn as nn
 import torch.optim as optim
+from collections import deque
 from RL.DQN import DQN
 from RL.Env import Env
 from RL.ReplayMemory import ReplayMemory
 from game.model.Grid import Grid
 from utils.constants import *
-import matplotlib.pyplot as plt
+from RL.Plot import Plot
 
 class TrainingAgent:
     def __init__(self, hidden_size=128):
         self.alpha = 0.001
         self.gamma = 0.99
         self.sync_rate = 100
-        self.replay_memory_size = 5000
+        self.replay_memory_size = 10000
         self.batch_size = 32
         self.hidden_size = hidden_size
 
         self.device = T.device("cuda" if T.cuda.is_available() else "cpu")
         self.loss_fn = nn.MSELoss()
 
-    def train(self, episodes, start_episode=0, start_epsilon=1.0):
+        self.plot = Plot()
+
+    def train(self, episodes):
+        epsilon = 1.0
+        final_epsilon = 0.1
+        decay_until_episode = 40000
+        decay_rate = (final_epsilon / epsilon) ** (1 / decay_until_episode)
+
         grid = Grid(ROWS, COLS, SCREEN_WIDTH, SCREEN_HEIGHT)
         self.env = Env(grid)
 
         num_states = np.prod(self.env.get_state_shape())
         num_actions = self.env.get_action_space()
         self.actions = list(range(num_actions))
-        epsilon = 1
-        memory = ReplayMemory(self.replay_memory_size)
+        self.memory = ReplayMemory(self.replay_memory_size)
 
         self.policy_net = DQN(num_states, self.hidden_size, num_actions).to(self.device)
         self.target_net = DQN(num_states, self.hidden_size, num_actions).to(self.device)
@@ -78,20 +85,20 @@ class TrainingAgent:
                         action = self.policy_net(input_tensor).argmax().item()
 
                 new_state, reward, terminated, _ = self.env.step(action)
-                memory.append((state, action, new_state, reward, terminated))
+                self.memory.append((state, action, new_state, reward, terminated))
                 state = new_state
                 total_reward += reward
                 step_count += 1
 
-            rewards_per_episode[i] = total_reward
+            rewards_per_episode[i - start_episode] = total_reward
 
-            if len(memory) > self.batch_size:
-                batch = memory.sample(self.batch_size)
+            if len(self.memory) > self.batch_size:
+                batch = self.memory.sample(self.batch_size)
                 self.optimize(batch)
 
-                epsilon = max(epsilon * 0.995, 0.1)
+                epsilon = max(final_epsilon, epsilon * decay_rate ** (i - start_episode))
                 epsilon_history.append(epsilon)
-                print(f"Episode {i + 1}/{episodes}, Total Reward: {total_reward}, Epsilon: {epsilon:.4f}")
+                #print(f"Episode {i + 1}/{episodes}, Total Reward: {total_reward}, Epsilon: {epsilon:.4f}")
                 if step_count > self.sync_rate:
                     self.target_net.load_state_dict(self.policy_net.state_dict())
                     step_count = 0
@@ -109,21 +116,12 @@ class TrainingAgent:
                 print(f"Saved checkpoint at episode {i}")
 
 
-        print(f"Replay memory size: {len(memory)}")
+        #print(f"Replay memory size: {len(self.memory)}")
         self.env.grid.print_grid(self.env.grid.grid)
 
-        plt.plot(rewards_per_episode, label='Reward per Episode')
-        plt.plot(np.convolve(rewards_per_episode, np.ones(1000)/1000, mode='valid'), label='1000-Episode Average')
-        plt.xlabel('Episode')
-        plt.ylabel('Total Reward')
-        plt.title('DQN Training Reward Progress')
-        plt.legend()
-        plt.show()
+        self.plot.plot_training(rewards_per_episode)
 
     def state_to_dqn_input(self, state: np.ndarray, num_states: int) -> T.Tensor:
-        """
-        Assumes `state` is a flattened numpy array (e.g. 16,) of floats.
-        """
         if isinstance(state, np.ndarray):
             return T.tensor(state, dtype=T.float32).view(1, num_states)
         else:
@@ -202,13 +200,12 @@ class TrainingAgent:
     def save_replay_memory(self, filename="replay_memory.pkl"):
         with open(filename, "wb") as f:
             pickle.dump(self.memory.memory, f)
-        print(f"Replay memory saved with {len(self.memory)} transitions.")
 
-    def load_replay_memory(self, filename="replay_memory.pkl"): 
-        if os.path.exists(filename):
+    def load_replay_memory(self, filename="replay_memory.pkl"):
+        if os.path.exists(filename) and os.path.getsize(filename) > 0:
             with open(filename, "rb") as f:
                 memory_list = pickle.load(f)
             self.memory.memory = deque(memory_list, maxlen=self.replay_memory_size)
-            print(f"Replay memory loaded with {len(self.memory)} transitions.")
         else:
-            print("No replay memory file found, starting fresh.")
+            print("No valid replay memory file found, starting fresh.")
+
