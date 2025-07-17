@@ -80,8 +80,12 @@ class Grid:
     
     def normalize_grid(self):
         numeric_grid = np.array(self.grid_values(self.grid), dtype=float)
-        normalized_grid = np.log2(numeric_grid + 1) / 17.0
+        with np.errstate(divide='ignore'):
+            log_grid = np.log2(numeric_grid)
+        log_grid[numeric_grid == 0] = 0  
+        normalized_grid = log_grid / 16.0
         return np.round(normalized_grid, 2)
+
 
     def handle_move(self, direction):
         #print("MOVE MADE:", direction)
@@ -91,8 +95,8 @@ class Grid:
         prev_grid_values = self.grid_values(self.previous_grid)
         current_grid_values = self.grid_values(self.grid)
         if prev_grid_values == current_grid_values:
-            return #print("tempppppppppppppp")
-            # Do something
+            if self.move.no_moves_left():
+                self.game_over = True
         else: 
             self.generate_cell.generate_new_cell()
             if self.move.no_moves_left():
